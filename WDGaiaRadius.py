@@ -21,7 +21,7 @@ import os
 from BergeronToPandas import BergeronToPandas
 
 def WDGaiaRadius(ra,dec,teff,teff_err=None,searchradius=5.0,modelmass=0.6,
-                 modelpath='AllModels/',A_G=0):
+                 modelpath='AllModels/',A_G=0,sptype="DA"):
     """Estimate WD Radius from Gaia astrometry.
     
     Queries for Gaia data and distances from Bailer-Jones et al. (2018, ApJ, 156, 2).
@@ -71,7 +71,8 @@ def WDGaiaRadius(ra,dec,teff,teff_err=None,searchradius=5.0,modelmass=0.6,
         modelfile = os.path.join(modelpath, "Table_Mass_{:.1f}".format(modelmass))
         print("Referencing Bergeron model file at "+modelfile)
         
-        models = list(BergeronToPandas(modelfile).values())[0]
+        spindex = {"DA":0,"DB":1}[sptype]
+        models = list(BergeronToPandas(modelfile).values())[spindex]
         
         #Constants
         G = 6.67259e-8 #cm3 g-1 s-2

@@ -1,5 +1,3 @@
-#!/usr/bin/env python2
-# -*- coding: utf-8 -*-
 """
 Created on Tue Oct  8 13:39:24 2019
 
@@ -20,16 +18,19 @@ import os
 
 from BergeronToPandas import BergeronToPandas
 
+Gaia.MAIN_GAIA_TABLE = "gaiaedr3.gaia_source"
+
 def WDGaiaRadius(ra,dec,teff,teff_err=None,searchradius=5.0,modelmass=0.6,
                  modelpath='AllModels/',A_G=0,sptype="DA"):
     """Estimate WD Radius from Gaia astrometry.
     
-    Queries for Gaia data and distances from Bailer-Jones et al. (2018, ApJ, 156, 2).
-    Scales Bergeron et al. DA (no DBs currently) cooling models 
+    Queries for Gaia DR3 data and distances from Bailer-Jones et al. 
+    (2021, AJ, 161, 147).
+    Scales Bergeron et al. DA or DB cooling models 
     (http://www.astro.umontreal.ca/~bergeron/CoolingModels/)
     until the radius reproduces the Gaia magnitude at the parallactic distance.
     Corrects for extinction if coefficient A_G is provided in magnitudes, 
-    following the prescription of Gentile-Fusillo et al. (2019, MNRAS, 482, 4570).
+    following the prescription of Gentile-Fusillo et al. (2021, MNRAS, 508, 3877).
     Uses https://github.com/keatonb/BergeronToPandas to read in Bergeron models.
     If error on Teff given, includes contribution roughly in quadrature.
     Returns measurement and lower, upper bounds defined by Bailer-Jones et al. 
@@ -39,8 +40,9 @@ def WDGaiaRadius(ra,dec,teff,teff_err=None,searchradius=5.0,modelmass=0.6,
     teff,teff_err in Kelvin from spectroscopy
     searchradius is in arcseconds
     modelmass in solar units must match a file from the Bergeron models
-                that is new enough to include synthetic Gaia magnitudes.
+                that is new enough to include synthetic Gaia DR3 magnitudes.
     """
+    
     #First query Gaia sources
     coord = SkyCoord(ra=ra, dec=dec, unit=(u.degree, u.degree), frame='icrs')
     searchradius = u.Quantity(searchradius, u.arcsec)
@@ -63,8 +65,8 @@ def WDGaiaRadius(ra,dec,teff,teff_err=None,searchradius=5.0,modelmass=0.6,
         
         #Then get Bailer-Jones distance
         v = Vizier(columns=['*'],
-                column_filters={"Source":str(sourceid)}).get_catalogs('I/347')
-        dist = np.array([v[0]["rest"][0],v[0]["b_rest"][0],v[0]["B_rest"][0]])
+                column_filters={"Source":str(sourceid)}).get_catalogs('I/352')
+        dist = np.array([v[0]["rgeo"][0],v[0]["b_rgeo"][0],v[0]["B_rgeo"][0]])
         print("Distance constraints from Bailer-Jones et al: {}".format(dist))
         
         #Referencing Bergeron cooling models
@@ -72,7 +74,8 @@ def WDGaiaRadius(ra,dec,teff,teff_err=None,searchradius=5.0,modelmass=0.6,
         print("Referencing Bergeron model file at "+modelfile)
         
         spindex = {"DA":0,"DB":1}[sptype]
-        models = list(BergeronToPandas(modelfile).values())[spindex]
+        models = BergeronToPandas(modelfile)
+        models = models[list(models.keys())[spindex]]
         
         #Constants
         G = 6.67259e-8 #cm3 g-1 s-2
@@ -83,7 +86,7 @@ def WDGaiaRadius(ra,dec,teff,teff_err=None,searchradius=5.0,modelmass=0.6,
         modellogg = models['logg'].values
         modelradius = np.sqrt(G*modelmass*Msun/(10.**modellogg))/Rsun #solar radii
         
-        modelGmag = models['G'].values
+        modelGmag = models['G3'].values
         
         #Define interpolation functions
         teff2radius = interp1d(modelteff,modelradius)
